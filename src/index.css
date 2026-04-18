@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .text-gradient {
+    background: linear-gradient(to bottom, #fff 40%, rgba(255, 255, 255, 0.4));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-bg: var(--theme-bg, #0A0B10);
+  --color-card: var(--theme-card, #161821);
+  --color-accent-primary: var(--theme-accent, #6366F1);
+  --color-accent-secondary: #EC4899;
+  --color-text-dim: #94A3B8;
+  --color-success: #10B981;
+  --color-border: rgba(255, 255, 255, 0.05);
+
+  --animate-spin-slow: spin 8s linear infinite;
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+}
+
+body {
+  @apply bg-bg text-white antialiased;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}

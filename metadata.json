@@ -1,0 +1,6 @@
+{
+  "name": "Chronos Alarm",
+  "description": "A sophisticated digital alarm clock with a hardware-inspired aesthetic, featuring multiple alarms, snooze functionality, and AI-powered sleep cycle tracking.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": []
+}
