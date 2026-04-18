@@ -45,6 +45,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { GoogleGenAI } from "@google/genai";
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { KeepAwake } from '@capacitor-community/keep-awake';
 import { Alarm, AlarmStatus, CrescendoConfig, WorldClockItem, TimerItem } from './types';
 
 // Constants
@@ -348,8 +352,6 @@ export default function App() {
     const { vibrationSync, vibrationPattern, targetVolume } = crescendoConfig;
 
     const startVibrating = () => {
-      if (!('vibrate' in navigator)) return;
-      
       const patterns: Record<string, number[]> = {
         steady: [1000],
         pulse: [500, 500],
@@ -360,7 +362,22 @@ export default function App() {
       const pattern = patterns[vibrationPattern] || patterns.steady;
       const interval = pattern.reduce((a, b: number) => a + b, 0);
 
-      const doVibe = () => navigator.vibrate(pattern);
+      const doVibe = async () => {
+        try {
+          // Native Capacitor Haptics (Immediate feedback)
+          if (vibrationPattern === 'rapid') {
+            await Haptics.impact({ style: ImpactStyle.Heavy });
+          } else {
+            await Haptics.notification({ type: NotificationType.Warning });
+          }
+          
+          // Fallback to browser vibrate for broader support
+          if ('vibrate' in navigator) navigator.vibrate(pattern);
+        } catch (e) {
+          if ('vibrate' in navigator) navigator.vibrate(pattern);
+        }
+      };
+
       doVibe();
       vibeInterval = window.setInterval(doVibe, interval);
     };
@@ -395,8 +412,11 @@ export default function App() {
     if (!isSleeping || !crescendoConfig.sleepTrackingEnabled) {
       setSleepActivity([]);
       setSmartWakeTriggered(false);
+      try { KeepAwake.allowSleep(); } catch (e) {} // Allow dimming again
       return;
     }
+
+    try { KeepAwake.keepAwake(); } catch (e) {} // Prevent dimming
 
     let audioContext: AudioContext | null = null;
     let analyser: AnalyserNode | null = null;
@@ -583,13 +603,32 @@ export default function App() {
     }
   }, [status, isMuted, activeAlarm, crescendoConfig.initialVolume, crescendoConfig.targetVolume]);
 
-  const triggerAlarm = (alarm: Alarm) => {
+  const triggerAlarm = async (alarm: Alarm) => {
     setActiveAlarm(alarm);
     setStatus('ringing');
     setLastTriggeredMinute(alarm.time);
     setPreAlarmActive(false);
     setWasSnoozed(false);
     setSnoozeCount(0);
+
+    // Native Notification Trigger
+    try {
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            title: `Alarm: ${alarm.time}`,
+            body: alarm.label || 'Time to wake up!',
+            id: 1,
+            schedule: { at: new Date() },
+            sound: 'standard.wav', // Fallback for native sounds
+            actionTypeId: '',
+            extra: null
+          }
+        ]
+      });
+    } catch (e) {
+      console.warn("Local notification failed:", e);
+    }
   };
 
   const checkBedtime = useCallback((now: Date) => {
@@ -715,6 +754,18 @@ export default function App() {
 
   // Clock Tick
   useEffect(() => {
+    // Request Native Permissions and Setup UI
+    const setupNative = async () => {
+      try {
+        await LocalNotifications.requestPermissions();
+        await StatusBar.setStyle({ style: Style.Dark });
+        await StatusBar.setBackgroundColor({ color: '#0A0B10' });
+      } catch (e) {
+        console.warn("Native setup failed or not on mobile:", e);
+      }
+    };
+    setupNative();
+
     const timer = setInterval(() => {
       const now = new Date();
       setTime(now);
